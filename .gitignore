@@ -1,0 +1,7 @@
+*.swp
+*.tgz
+*~
+SHA256SUMS
+/node_modules/
+/devices/*
+!.gitkeep
