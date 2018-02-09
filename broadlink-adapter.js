@@ -16,11 +16,13 @@ var DEBUG = true;
 
 const Adapter = require('../adapter');
 
+const DEVICE_CONFIG_DIR = __dirname + '/devices';
+
 function validateJSON(text) {
     var obj = null;
 
     try {
-        obj = JSON.parse( text );
+        obj = JSON.parse(text);
         return obj;
     } catch (O_o) {
         ;
@@ -38,16 +40,21 @@ function validateJSON(text) {
 
 class BroadlinkAdapter extends Adapter {
     constructor(addonManager, manifest, broadlink) {
-        super(addonManager, 'broadlink-' + broadlink.mac, manifest.name);
+        super(addonManager, 'broadlink-' + broadlink.host.macAddress, manifest.name);
 
+        this.mac = broadlink.host.macAddress;
         this._broadlink = broadlink;
         this._queue = new Queue(1, Infinity);
         this.manager.addAdapter(this);
     }
 
+    handleDeviceAdded(device) {
+        super.handleDeviceAdded(device);
+    }
+
     sendData(hexData) {
         if (!hexData) {
-            console.log('Missing params, sendData failed', typeof device, typeof hexData);
+            console.log('Missing params, sendData failed');
             return;
         }
 
@@ -63,7 +70,7 @@ class BroadlinkAdapter extends Adapter {
         }.bind(this));
     }
 
-    waitSendSequenceResolve(property) {
+    waitSendSequenceResolve(device, property) {
         this._queue.add(function () {
             return new Promise((resolve, reject) => {
                 var deferredSet = property.deferredSet;
@@ -71,34 +78,35 @@ class BroadlinkAdapter extends Adapter {
                     property.deferredSet = null;
                     deferredSet.resolve(property.value);
                 }
+                device.notifyPropertyChanged(property);
                 resolve();
             });
         });
     }
 
-    sendSequence(property, sequence) {
-        for (var i in sequence) {
-            const data = sequence[i];
+    sendSequence(device, property, sequence) {
+        for (let i in sequence) {
+            let data = sequence[i];
             this.sendData(data);
         }
-        this.waitSendSequenceResolve(property);
+        this.waitSendSequenceResolve(device, property);
     }
 
-    _createDeviceFromJson(json){
+    _createDeviceFromJson(json) {
         const config = validateJSON(json);
 
-        if(!config || config.mac != this._broadlink.mac) return;
-
         // ToDo check config
+        console.log(config);
+        if (!config || config.mac != this.mac) return;
 
-
+        this.handleDeviceAdded(new IRDevice(this, config));
     }
 
     _createDeviceFromFile(file) {
-        fs.stat(file, function (err, stat) {
+        fs.stat(DEVICE_CONFIG_DIR + '/' + file, function (err, stat) {
             if (err) return;
 
-            fs.readFile('file', 'utf8', function (err, data) {
+            fs.readFile(DEVICE_CONFIG_DIR + '/' + file, 'utf8', function (err, data) {
                 if (err) throw err;
 
                 this._createDeviceFromJson(data);
@@ -107,10 +115,10 @@ class BroadlinkAdapter extends Adapter {
     }
 
     _readDeviceFiles() {
-        fs.readdir(__dirname + '/devices', function (err, files) {
+        fs.readdir(DEVICE_CONFIG_DIR, function (err, files) {
             if (err) throw err;
             files.forEach(this._createDeviceFromFile.bind(this));
-        });
+        }.bind(this));
     }
 
     startPairing(timeoutSeconds) {
@@ -164,13 +172,13 @@ class BroadlinkManager extends Adapter {
         this.event.emit('deviceReady', device);
     }
 
-    _discoverDevices(timeoutSeconds) {
+    _discoverDevices() {
         if (this._isPairing == false) {
 
             return;
         }
 
-        if (timeoutSeconds <= 0) {
+        if (this._timeoutSeconds <= 0) {
             this._isPairing = false;
 
             return;
@@ -179,14 +187,19 @@ class BroadlinkManager extends Adapter {
         this._broadlinkFinder.discover(this._port1, this._port2, this._destaddr);
 
         setTimeout(function () {
-            this._discoverDevices(timeoutSeconds - 5);
+            this._timeoutSeconds -= 5;
+            this._discoverDevices();
         }.bind(this), 5 * 1000);
     }
 
     startPairing(timeoutSeconds) {
+        this._timeoutSeconds = timeoutSeconds;
+        if (this._isPairing == true) {
+            return
+        }
         this._isPairing = true;
         console.log('Pairing mode started, timeout =', timeoutSeconds);
-        this._discoverDevices(timeoutSeconds);
+        this._discoverDevices();
     }
 
     cancelPairing() {
