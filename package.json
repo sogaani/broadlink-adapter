@@ -34,7 +34,10 @@
     },
     "enabled": true,
     "plugin": false,
-    "exec": "{nodeLoader} {path}"
+    "exec": "{nodeLoader} {path}",
+    "config": {
+      "devices": []
+    }
   },
   "dependencies": {
     "broadlinkjs-rm": "github:sogaani/broadlinkjs-rm",

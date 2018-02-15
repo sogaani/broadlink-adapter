@@ -5,7 +5,7 @@ const Device = require('../device');
 const IRProperty = require('./ir-property');
 const Constants = require('../addon-constants');
 
-var DEBUG = true;
+var DEBUG = false;
 
 /**
  * thermostat config
@@ -107,12 +107,13 @@ class IRDevice extends Device {
             'on',                          // name
             {                              // property description
                 type: 'boolean',
+                unit: 'percent',
                 default: false,
                 onLevel: config.onLevel
             },
             {                              // ir
                 on: ir.on,
-                on: ir.off
+                off: ir.off
             },
             'setOnOffValue'                // setAttrFromValue
         );
@@ -133,14 +134,17 @@ class IRDevice extends Device {
     }
 
     _initOnOffLight(ir) {
-        this.type = Constants.THING_TYPE_ON_OFF_SWITCH;
+        this.type = Constants.THING_TYPE_ON_OFF_LIGHT;
         this._addProperty(
             'on',                          // name
             {                              // property description
                 type: 'boolean',
                 default: false
             },
-            ir,                            // ir
+            {                              // ir
+                on: ir.on,
+                off: ir.off
+            },
             'setOnOffValue'                // setAttrFromValue
         );
     }
@@ -191,7 +195,7 @@ class IRDevice extends Device {
             },
             {                              // ir
                 on: ir.on,
-                on: ir.off
+                off: ir.off
             },
             'setOnOffValue'                // setAttrFromValue
         );
@@ -203,13 +207,14 @@ class IRDevice extends Device {
     }
 
     asDict() {
-        let dict = super.asDict();
+        const dict = super.asDict();
         dict.mac = this.mac;
 
         return dict;
     }
 
     sendIRSequence(property, sequence) {
+        if (DEBUG) console.log('sendIRSequence:', property, sequence);
         this.adapter.sendSequence(this, property, sequence);
     }
 }
