@@ -46,6 +46,18 @@ class BroadlinkAdapter extends Adapter {
         this._broadlink = broadlink;
         this._queue = new Queue(1, Infinity);
         this.manager.addAdapter(this);
+        const config = manifest.moziot.config;
+
+        this._loadConfig(config);
+    }
+
+    _loadConfig(config) {
+        if (config && config.devices && Array.isArray(config.devices)) {
+            const devices = config.devices;
+            devices.forEach(function (device) {
+                this._createDeviceFromConfig(device);
+            }.bind(this));
+        }
     }
 
     handleDeviceAdded(device) {
@@ -92,9 +104,7 @@ class BroadlinkAdapter extends Adapter {
         this.waitSendSequenceResolve(device, property);
     }
 
-    _createDeviceFromJson(json) {
-        const config = validateJSON(json);
-
+    _createDeviceFromConfig(config) {
         // ToDo check config
         console.log(config);
         if (!config || config.mac != this.mac) return;
@@ -108,8 +118,8 @@ class BroadlinkAdapter extends Adapter {
 
             fs.readFile(DEVICE_CONFIG_DIR + '/' + file, 'utf8', function (err, data) {
                 if (err) throw err;
-
-                this._createDeviceFromJson(data);
+                const config = validateJSON(data);
+                this._createDeviceFromConfig(config);
             }.bind(this));
         }.bind(this))
     }

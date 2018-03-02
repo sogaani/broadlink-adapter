@@ -3,7 +3,7 @@
 const Deferred = require('../deferred');
 const Property = require('../property');
 
-var DEBUG = true;
+var DEBUG = false;
 
 const DESCR_FIELDS = ['modes', 'cool', 'heat', 'default', 'levelStep', 'onLevel'];
 function copyDescrFieldsInto(target, source) {
@@ -22,12 +22,12 @@ class IRProperty extends Property {
         this._ir = ir;
 
         //if (setIRCodeFromValue) {
-            this.setIRCodeFromValue = Object.getPrototypeOf(this)[setIRCodeFromValue];
-            if (!this.setIRCodeFromValue) {
-                let err = 'Unknown function: ' + setIRCodeFromValue;
-                console.error(err);
-                throw err;
-            }
+        this.setIRCodeFromValue = Object.getPrototypeOf(this)[setIRCodeFromValue];
+        if (!this.setIRCodeFromValue) {
+            let err = 'Unknown function: ' + setIRCodeFromValue;
+            console.error(err);
+            throw err;
+        }
         //}
 
         copyDescrFieldsInto(this, propertyDescr);
@@ -123,7 +123,7 @@ class IRProperty extends Property {
      */
     setTemperatureNumericValue(propertyValue) {
         // propertyValue is a temperature integer
-        const sequence = [];
+        let sequence = [];
 
         let temperature = parseInt(propertyValue, 10);
 
@@ -139,7 +139,7 @@ class IRProperty extends Property {
         let modeProperty = this.device.findProperty('mode');
 
         if (modeProperty) {
-            sequence.push(modeProperty.setIRCodeFromValue(modeProperty.value));
+            sequence = sequence.concat(modeProperty.setIRCodeFromValue(modeProperty.value));
         }
 
         return sequence;
@@ -175,7 +175,7 @@ class IRProperty extends Property {
                 return setThermostatModeValue(this.prevMode);
             case 'heat':
             case 'cool':
-                const mode = this.modes[modeIndex];
+                const mode = this[propertyValue];
 
                 temperatureProperty['min'] = mode.min;
                 temperatureProperty['max'] = mode.max;
@@ -213,6 +213,7 @@ class IRProperty extends Property {
      * the value passed in.
      */
     setValue(value) {
+        if (DEBUG) console.log('setValue:', this, value);
         if (!this.setIRCodeFromValue) {
             return Promise.resolve();
         }

@@ -1,6 +1,6 @@
 {
   "name": "broadlink-adapter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Broadlink adapter plugin for Mozilla IoT Gateway",
   "main": "index.js",
   "keywords": [
@@ -34,7 +34,10 @@
     },
     "enabled": true,
     "plugin": false,
-    "exec": "{nodeLoader} {path}"
+    "exec": "{nodeLoader} {path}",
+    "config": {
+      "devices": []
+    }
   },
   "dependencies": {
     "broadlinkjs-rm": "github:sogaani/broadlinkjs-rm",
