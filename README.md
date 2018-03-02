@@ -58,5 +58,14 @@ Broadlink-adapter supports the following device types.
 
 You can see configuration samples in the example directory.
 
+## Learncode tool
+
+Learncode tool creates JSON to insert into config.
+
+```shell
+cd ~/mozilla-iot/gateway/src/addons/broadlink-adapter
+node asset/learncode
+```
+
 ## ToDo
-- tool which learn code and add ir device.
+- web configuration screen

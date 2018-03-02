@@ -1,71 +1,30 @@
-const BroadlinkLoader = require('../broadlink-adapter')
-const readline = require('readline');
-class CommandHandler {
+'use strict';
+
+const util = require('util');
+const EventEmitter = require('events').EventEmitter;
+const inquirer = require("inquirer");
+const LearncodePrompt = require("./learncode-prompt");
+const BroadlinkSelectorPrompt = require("./broadlink-selector-prompt");
+
+inquirer.registerPrompt('broadlink-selector', BroadlinkSelectorPrompt);
+inquirer.registerPrompt('learncode', LearncodePrompt);
+
+const IrConstants = require('../constants');
+const BroadlinkLoader = require('../broadlink-adapter');
+
+process.on('unhandledRejection', console.dir);
+
+class LearnManager extends EventEmitter {
     constructor() {
-        this.codes = [];
-    }
-
-    startlearn(args, learnManager, callback) {
-        switch (args[0]) {
-            case 'onOff':
-                break;
-            case 'temp':
-                break;
-            default:
-                break;
-        }
-        learnManager.startLearning(true);
-        callback(null, '');
-    }
-
-    add(hex) {
-        this.codes.push(hex);
-    }
-
-    stoplearn(args, learnManager, callback) {
-        learnManager.stopLearning();
-        callback(null, '');
-    }
-
-    dumpCodes(args, learnManager, callback) {
-        callback(null, this.codes);
-    }
-}
-
-class LearnManager {
-    constructor(mac, handler) {
-        this._mac = mac;
-        this._broadlinks = {};
-        this.handler = handler;
-        this.readlineInterface = readline.createInterface(process.stdin, process.stdout);
-        // プロンプトを定義 後から変更も可能
-        this.readlineInterface.setPrompt('> ');
-        this.readlineInterface.on('line', this._onLine.bind(this));
-        this.readlineInterface.on('close', function () {
-            console.log('');
-            process.stdin.destroy();
-        });
-    }
-
-    _onLine(line) {
-        // 空白でパースして最初をコマンド、残りを引数とする
-        var args = line.split(/\s+/),
-            cmd = args.shift();
-        // ハンドラーにコマンドがあったら実行、この時callを使って、ハンドラーのthisをrliにしてやる
-        if (this.handler[cmd]) {
-            this.handler[cmd](args, this, function (err, res) {
-                console.log(res); // コマンドの実行結果を出力
-                this.readlineInterface.prompt();
-            }.bind(this));
-        } else if (cmd.length > 0) {
-            console.log('cmd not found.');
-        }
-        this.readlineInterface.prompt();
+        super();
+        this.state = 'pending';
+        this.broadlinks = {};
     }
 
     addAdapter(adapter) {
         if (adapter.mac) {
-            this._broadlinks[adapter.mac] = adapter;
+            this.broadlinks[adapter.mac] = adapter;
+            this.emit('discover', adapter);
         } else {
             this._scanner = adapter;
         }
@@ -74,42 +33,47 @@ class LearnManager {
     stopLearning() {
         if (this._interval) clearInterval(this._interval);
         this._interval = null;
-        if (this._device) this._device.removeListener('rawData', onRawData);
+        if (this._device && this.rawDataListener) this._device.removeListener('rawData', this.rawDataListener);
 
-        console.log(`Learn Code (stopped)`);
+        if (this.state == 'learning') {
+            this.state = 'pending';
+            this.emit('state', this.state);
+        }
     }
 
     _onRawData(message) {
         const hex = message.toString('hex');
-        console.log(message);
-        console.log(`Learn Code (learned hex code: ${hex})`);
-        this.handler.add(hex);
-        this._device.enterLearning();
-        console.log(`Learn Code (ready)`);
+        this.emit('code', hex);
+        this.stopLearning();
     };
 
-    startLearning(disableTimeout) {
+    discoverDevices() {
+        if (this._scanner) this._scanner.startPairing(10);
+    }
+
+    startLearning(mac, disableTimeout) {
         this.stopLearning();
 
         // Get the Broadlink device
-        const adapter = this._broadlinks[this._mac];
+        const adapter = this.broadlinks[mac];
 
         if (adapter) this._device = adapter._broadlink;
 
         if (!this._device) {
-            if (this._scanner) this._scanner.startPairing(10);
-            setTimeout(function () { this.startLearning(disableTimeout) }.bind(this), 1000);
+            this.discoverDevices();
+            setTimeout(function () { this.startLearning(mac, disableTimeout) }.bind(this), 1000);
             return;
         }
 
-        if (!this._device.enterLearning) return console.log(`Learn Code (IR learning not supported for device at ${this._mac})`);
+        if (!this._device.enterLearning) return console.log(`Learn Code (IR learning not supported for device at ${mac})`);
 
-        this._device.on('rawData', this._onRawData.bind(this));
+        this.rawDataListener = this._onRawData.bind(this);
+        this._device.on('rawData', this.rawDataListener);
 
         this._device.enterLearning();
-        console.log(`Learn Code (ready)`);
 
-        this.readlineInterface.prompt();
+        this.state = 'learning';
+        this.emit('state', this.state);
 
         this._interval = setInterval(function () { this._device.checkData() }.bind(this), 1000);
 
@@ -125,5 +89,259 @@ class LearnManager {
     }
 }
 
-const learnManager = new LearnManager(process.argv[2], new CommandHandler());
+const learnManager = new LearnManager();
 BroadlinkLoader(learnManager, {});
+
+var deviceConfig;
+
+function validateString(input) {
+    return new Promise(function (resolve, reject) {
+        if (typeof input !== 'string') {
+            reject('You need to provide a string');
+            return;
+        }
+        if (!input.length) {
+            reject('You need to provide least one letter');
+            return;
+        }
+        resolve(true);
+    });
+}
+
+async function makeDeviceConfig() {
+    const basicQuestions = [
+        {
+            type: "broadlink-selector",
+            name: "mac",
+            message: "Which broadlink device do you choice to send and learn ir code.",
+            broadlinkManager: learnManager
+        },
+        {
+            type: "list",
+            name: "type",
+            message: "Whitch type ir device do you want to learn.",
+            choices: [
+                IrConstants.IR_DEVICE_TYPE_THERMOSTAT,
+                IrConstants.IR_DEVICE_TYPE_DIMMABLE_LIGHT,
+                IrConstants.IR_DEVICE_TYPE_ON_OFF_LIGHT,
+                IrConstants.IR_DEVICE_TYPE_ON_OF_SWITCH
+            ]
+        },
+        {
+            type: "input",
+            name: "name",
+            message: "Input ir device name.",
+            validate: validateString
+        },
+        {
+            type: "input",
+            name: "id",
+            message: "Input ir device id.",
+            validate: validateString
+        }
+    ];
+
+    deviceConfig = await inquirer.prompt(basicQuestions)
+
+    switch (deviceConfig.type) {
+        case IrConstants.IR_DEVICE_TYPE_THERMOSTAT:
+            await makeThermostatConfig();
+            break;
+        case IrConstants.IR_DEVICE_TYPE_DIMMABLE_LIGHT:
+            await makeDimbleLightConfig();
+            break;
+        case IrConstants.IR_DEVICE_TYPE_ON_OFF_LIGHT:
+            await makeOnOffLightConfig();
+            break;
+        case IrConstants.IR_DEVICE_TYPE_ON_OF_SWITCH:
+            await makeOnOffSwitchConfig();
+            break;
+        default:
+            console.log('invalid device type:' + deviceConfig.type);
+            process.exit(1);
+            break;
+    }
+
+    console.log(deviceConfig);
+    process.exit(0);
+}
+
+function filterNumber(input) {
+    return new Promise(function (resolve, reject) {
+        resolve(parseInt(input, 10));
+    });
+}
+
+function validateNumber(input) {
+    return new Promise(function (resolve, reject) {
+        if (isNaN(input)) {
+            reject('You need to provide a number');
+            return;
+        }
+        resolve(true);
+    });
+}
+
+
+async function makeThermostatConfig() {
+    const minMsg = "What is the minimum temperature on %s mode that can be set";
+    const maxMsg = "What is the maximum temperature on %s mode that can be set";
+    const thermostatQuestions = [
+        {
+            type: "input",
+            name: "min",
+            filter: filterNumber,
+            validate: validateNumber
+        },
+        {
+            type: "input",
+            name: "max",
+            filter: filterNumber,
+            validate: validateNumber
+        }
+    ];
+
+    deviceConfig.ir = {};
+
+    async function learnIR(mode) {
+        // heat questions
+        thermostatQuestions[0].message = util.format(minMsg, mode);
+        thermostatQuestions[1].message = util.format(maxMsg, mode);
+
+        let answers = await inquirer.prompt(thermostatQuestions);
+
+        deviceConfig[mode] = {
+            min: answers.min,
+            max: answers.max
+        };
+
+        deviceConfig.ir[mode] = [];
+        for (let i = answers.min; i <= answers.max; i++) {
+            const name = mode + i;
+            const message = mode + ' ' + i + '℃';
+            const learnIRCodeQuestions =
+                {
+                    type: "learncode",
+                    name: name,
+                    message: message,
+                    broadlinkManager: learnManager,
+                    mac: deviceConfig.mac
+                }
+            let answers = await inquirer.prompt(learnIRCodeQuestions);
+            deviceConfig.ir[mode].push(answers[name]);
+        }
+    }
+
+    await learnIR('heat');
+    await learnIR('cool');
+}
+
+async function makeOnOffLightConfig() {
+    const onOffLightQuestions = [
+        {
+            type: "learncode",
+            name: "on",
+            message: "light on",
+            broadlinkManager: learnManager,
+            mac: deviceConfig.mac
+        },
+        {
+            type: "learncode",
+            name: "off",
+            message: "light off",
+            broadlinkManager: learnManager,
+            mac: deviceConfig.mac
+        }
+    ];
+
+    deviceConfig.ir = {};
+    let answers = await inquirer.prompt(onOffLightQuestions);
+
+    deviceConfig.ir.on = answers.on;
+    deviceConfig.ir.off = answers.off;
+}
+
+async function makeOnOffSwitchConfig() {
+    const onOffSwitchQuestions = [
+        {
+            type: "learncode",
+            name: "on",
+            message: "switch on",
+            broadlinkManager: learnManager,
+            mac: deviceConfig.mac
+        },
+        {
+            type: "learncode",
+            name: "off",
+            message: "switch off",
+            broadlinkManager: learnManager,
+            mac: deviceConfig.mac
+        }
+    ];
+
+    deviceConfig.ir = {};
+    let answers = await inquirer.prompt(onOffSwitchQuestions);
+
+    deviceConfig.ir.on = answers.on;
+    deviceConfig.ir.off = answers.off;
+}
+
+
+async function makeDimbleLightConfig() {
+    const dimbleLightQuestions = [
+        {
+            type: "learncode",
+            name: "on",
+            message: "light on",
+            broadlinkManager: learnManager,
+            mac: deviceConfig.mac
+        },
+        {
+            type: "learncode",
+            name: "off",
+            message: "light off",
+            broadlinkManager: learnManager,
+            mac: deviceConfig.mac
+        },
+        {
+            type: "learncode",
+            name: "levelUp",
+            message: "light levelUp",
+            broadlinkManager: learnManager,
+            mac: deviceConfig.mac
+        },
+        {
+            type: "learncode",
+            name: "levelDown",
+            message: "light levelDown",
+            broadlinkManager: learnManager,
+            mac: deviceConfig.mac
+        },
+        {
+            type: "input",
+            name: "onLevel",
+            message: "Brightness level expressed in percentage when light on",
+            filter: filterNumber,
+            validate: validateNumber
+        },
+        {
+            type: "input",
+            name: "levelStep",
+            message: "Brightness level changes expressed in percentage when levelDown or levelUp",
+            filter: filterNumber,
+            validate: validateNumber
+        }
+    ];
+
+    deviceConfig.ir = {};
+    let answers = await inquirer.prompt(dimbleLightQuestions);
+
+    deviceConfig.ir.on = answers.on;
+    deviceConfig.ir.off = answers.off;
+    deviceConfig.ir.levelUp = answers.levelUp;
+    deviceConfig.ir.levelDown = answers.levelDown;
+    deviceConfig.onLevel = answers.onLevel;
+    deviceConfig.levelStep = answers.levelStep;
+}
+
+makeDeviceConfig();

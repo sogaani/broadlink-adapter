@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "broadlinkjs-rm": "github:sogaani/broadlinkjs-rm",
+    "inquirer": "^5.1.0",
     "promise-queue": "^2.2.5"
   }
 }
