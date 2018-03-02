@@ -14,7 +14,16 @@ const fs = require('fs');
 
 var DEBUG = true;
 
-const Adapter = require('../adapter');
+let Adapter;
+try {
+    Adapter = require('../adapter');
+} catch (e) {
+    if (e.code !== 'MODULE_NOT_FOUND') {
+        throw e;
+    }
+
+    Adapter = require('gateway-addon').Adapter;
+}
 
 const DEVICE_CONFIG_DIR = __dirname + '/devices';
 

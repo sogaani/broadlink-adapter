@@ -1,7 +1,18 @@
 'use strict';
 
-const Deferred = require('../deferred');
-const Property = require('../property');
+let Deferred, Property;
+try {
+    Deferred = require('../deferred');
+    Property = require('../property');
+} catch (e) {
+    if (e.code !== 'MODULE_NOT_FOUND') {
+        throw e;
+    }
+
+    const gwa = require('gateway-addon');
+    Deferred = gwa.Deferred;
+    Property = gwa.Property;
+}
 
 var DEBUG = false;
 

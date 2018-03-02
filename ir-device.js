@@ -1,10 +1,22 @@
 'use strict';
 
 const util = require('util');
-const Device = require('../device');
 const IRProperty = require('./ir-property');
-const Constants = require('../addon-constants');
 const IrConstants = require('./constants');
+
+let Constants, Device;
+try {
+    Constants = require('../addon-constants');
+    Device = require('../device');
+} catch (e) {
+    if (e.code !== 'MODULE_NOT_FOUND') {
+        throw e;
+    }
+
+    const gwa = require('gateway-addon');
+    Constants = gwa.Constants;
+    Device = gwa.Device;
+}
 
 var DEBUG = false;
 
