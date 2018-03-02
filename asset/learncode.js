@@ -35,15 +35,21 @@ class LearnManager extends EventEmitter {
         this._interval = null;
         if (this._device && this.rawDataListener) this._device.removeListener('rawData', this.rawDataListener);
 
-        if (this.state == 'learning') {
+        if (this.state === 'learning') {
             this.state = 'pending';
-            this.emit('state', this.state);
         }
+        process.nextTick(function () {
+            this.emit('state', this.state);
+        }.bind(this));
     }
 
     _onRawData(message) {
         const hex = message.toString('hex');
-        this.emit('code', hex);
+
+        process.nextTick(function () {
+            this.emit('code', hex);
+        }.bind(this));
+
         this.stopLearning();
     };
 
@@ -73,7 +79,9 @@ class LearnManager extends EventEmitter {
         this._device.enterLearning();
 
         this.state = 'learning';
-        this.emit('state', this.state);
+        process.nextTick(function () {
+            this.emit('state', this.state);
+        }.bind(this));
 
         this._interval = setInterval(function () { this._device.checkData() }.bind(this), 1000);
 
@@ -81,7 +89,6 @@ class LearnManager extends EventEmitter {
 
         // Timeout the client after 10 seconds
         timeout = setTimeout(function () {
-            console.log('Learn Code (stopped - 10s timeout)');
             if (this._device.cancelRFSweep) this._device.cancelRFSweep();
 
             this.stopLearning();
@@ -90,7 +97,7 @@ class LearnManager extends EventEmitter {
 }
 
 const learnManager = new LearnManager();
-BroadlinkLoader(learnManager, {});
+BroadlinkLoader(learnManager, { moziot: {} });
 
 var deviceConfig;
 
@@ -162,7 +169,7 @@ async function makeDeviceConfig() {
             break;
     }
 
-    console.log(deviceConfig);
+    console.log(JSON.stringify(deviceConfig, null, ' '));
     process.exit(0);
 }
 

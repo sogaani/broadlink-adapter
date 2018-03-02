@@ -7,6 +7,8 @@ const cliCursor = require('cli-cursor');
 const chalk = require('chalk');
 const Base = require('inquirer/lib/prompts/base');
 const observe = require('inquirer/lib/utils/events');
+const Paginator = require('inquirer/lib/utils/paginator');
+
 
 class LearncodePrompt extends Base {
   constructor(questions, rl, answers) {
@@ -21,6 +23,8 @@ class LearncodePrompt extends Base {
     if (!this.opt.broadlinkManager) {
       this.throwParamError('broadlinkManager');
     }
+
+    this.paginator = new Paginator(this.screen);
   }
 
   /**
@@ -32,11 +36,6 @@ class LearncodePrompt extends Base {
   _run(cb) {
     this.done = cb;
 
-    const mac = this.mac;
-    const broadlinkManager = this.opt.broadlinkManager;
-
-    broadlinkManager.stopLearning();
-
     // Once user confirm (enter key)
     var events = observe(this.rl);
     var submit = events.line.map(this.getCurrentValue.bind(this));
@@ -44,6 +43,17 @@ class LearncodePrompt extends Base {
     var validation = this.handleSubmitEvents(submit);
     validation.success.forEach(this.onEnd.bind(this));
     validation.error.forEach(this.onError.bind(this));
+
+
+    const broadlinkManager = this.opt.broadlinkManager;
+
+    broadlinkManager.stopLearning();
+
+    this.codeListener = this.onLearn.bind(this);
+    this.stateListener = this.onState.bind(this);
+
+    broadlinkManager.on('code', this.codeListener);
+    broadlinkManager.on('state', this.stateListener);
 
     // Init
     cliCursor.hide();
@@ -64,26 +74,20 @@ class LearncodePrompt extends Base {
     const mac = this.mac;
 
     if (this.status === 'answered') {
-      message += chalk.cyan(this.answer);
-    } else if (this.learncode) {
-      message += chalk.cyan(this.learncode);
-    }
-
-    if (broadlinkManager.state == 'learning') {
-      bottomContent += chalk.cyan('>> ') + 'Point the remote control toward broadlink(' + mac + ') and press the button.\n';
+      message += '\n' + chalk.cyan(this.answer);
     } else {
-      bottomContent += chalk.cyan('>> ') + 'Wait for broadlink device:' + mac + ' to enter learning mode.\n';
+      if (this.learncode) {
+        message += '\n' + chalk.cyan(this.learncode);
+      }
 
-      this.codeListener = this.onLearn.bind(this);
-      this.stateListener = this.onState.bind(this);
+      if (broadlinkManager.state === 'learning') {
+        bottomContent += chalk.cyan('>> ') + 'Point the remote control toward broadlink(' + mac + ') and press the button.\n';
+      } else {
+        bottomContent += chalk.red('>> ') + 'Wait for broadlink device:' + mac + ' to enter learning mode.\n';
 
-      broadlinkManager.on('code', this.codeListener);
-      broadlinkManager.on('state', this.stateListener);
-
-      broadlinkManager.startLearning(mac, true);
+        broadlinkManager.startLearning(mac, true);
+      }
     }
-
-    bottomContent += chalk.cyan('>> ') + 'If you are OK with the above IR code, then press the enter key.';
 
     if (error) {
       bottomContent += chalk.red('>> ') + error;
@@ -103,8 +107,13 @@ class LearncodePrompt extends Base {
     this.answer = state.value;
     this.status = 'answered';
 
+    const broadlinkManager = this.opt.broadlinkManager;
+    broadlinkManager.removeListener('code', this.codeListener);
+    broadlinkManager.removeListener('state', this.stateListener);
+
     // Re-render prompt
     this.render();
+
 
     cliCursor.show();
     this.screen.done();
@@ -119,12 +128,6 @@ class LearncodePrompt extends Base {
    * When enter learning mode
    */
   onState(state) {
-
-    if (state == 'pending') {
-      broadlinkManager.removeListener('code', this.codeListener);
-      broadlinkManager.removeListener('state', this.stateListener);
-    }
-
     this.render();
   }
 

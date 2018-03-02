@@ -5,6 +5,7 @@
 
 const chalk = require('chalk');
 const ListPrompt = require('inquirer/lib/prompts/list');
+const Choices = require('inquirer/lib/objects/choices');
 
 class BroadlinkSelector extends ListPrompt {
     constructor(questions, rl, answers) {
@@ -22,15 +23,17 @@ class BroadlinkSelector extends ListPrompt {
 
         super._run(cb);
 
-        this.interval = setInterval(this.discoverBroadlinks.bind(this));
+        this.discoverBroadlinks();
+        
+        this.interval = setInterval(this.discoverBroadlinks.bind(this), 10000);
 
         return this;
     }
 
     onSubmit(value) {
-        super.onSubmit(value);
         if (this.listener) this.opt.broadlinkManager.removeListener('discover', this.listener);
         clearInterval(this.interval);
+        super.onSubmit(value);
     }
 
     discoverBroadlinks() {
@@ -44,7 +47,7 @@ class BroadlinkSelector extends ListPrompt {
 
     onDiscover() {
         const addresses = this.getBroadlinkAddresses();
-        if (addresses.length) this.opt.choices = addresses;
+        if (addresses.length) this.opt.choices = new Choices(addresses, this.answers);
 
         this.render();
     }
