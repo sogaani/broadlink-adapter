@@ -4,6 +4,7 @@ const util = require('util');
 const Device = require('../device');
 const IRProperty = require('./ir-property');
 const Constants = require('../addon-constants');
+const IrConstants = require('./constants');
 
 var DEBUG = true;
 
@@ -83,16 +84,16 @@ class IRDevice extends Device {
         this.mac = adapter.mac;
 
         switch (config.type) {
-            case 'thermostat':
+            case IrConstants.IR_DEVICE_TYPE_THERMOSTAT:
                 this._initThermostat(config.ir, config)
                 break;
-            case 'dimbleLight':
+            case IrConstants.IR_DEVICE_TYPE_DIMMABLE_LIGHT:
                 this._initDimbleLight(config.ir, config)
                 break;
-            case 'light':
+            case IrConstants.IR_DEVICE_TYPE_ON_OFF_LIGHT:
                 this._initOnOffLight(config.ir)
                 break;
-            case 'switch':
+            case IrConstants.IR_DEVICE_TYPE_ON_OF_SWITCH:
                 this._initOnOffSwitch(config.ir)
                 break;
             default:
