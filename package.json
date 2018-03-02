@@ -22,9 +22,11 @@
     "LICENSE",
     "SHA256SUMS",
     "index.js",
+    "constants.js",
     "broadlink-adapter.js",
     "ir-device.js",
     "ir-property.js",
+    "asset",
     "node_modules"
   ],
   "moziot": {
