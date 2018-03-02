@@ -12,7 +12,7 @@ const BroadlinkJS = require('broadlinkjs-rm');
 const IRDevice = require('./ir-device');
 const fs = require('fs');
 
-var DEBUG = true;
+var DEBUG = false;
 
 let Adapter;
 try {
@@ -217,12 +217,12 @@ class BroadlinkManager extends Adapter {
             return
         }
         this._isPairing = true;
-        console.log('Pairing mode started, timeout =', timeoutSeconds);
+        if (DEBUG) console.log('Pairing mode started, timeout =', timeoutSeconds);
         this._discoverDevices();
     }
 
     cancelPairing() {
-        console.log('Cancelling pairing mode');
+        if (DEBUG) console.log('Cancelling pairing mode');
         this.isPairing = false;
     }
 
@@ -247,7 +247,7 @@ class BroadlinkManager extends Adapter {
         }
 
         if (!device && !discovering) {
-            console.log(`Attempting to discover RM devices for 5s`);
+            if (DEBUG) console.log(`Attempting to discover RM devices for 5s`);
 
             this._discoverDevices(5);
         }
