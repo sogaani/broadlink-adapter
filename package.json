@@ -2,6 +2,7 @@
   "name": "broadlink-adapter",
   "version": "0.1.2",
   "description": "Broadlink adapter plugin for Mozilla IoT Gateway",
+  "author": "sogaani",
   "main": "index.js",
   "keywords": [
     "mozilla",
