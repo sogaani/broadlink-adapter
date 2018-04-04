@@ -9,7 +9,6 @@ const Base = require('inquirer/lib/prompts/base');
 const observe = require('inquirer/lib/utils/events');
 const Paginator = require('inquirer/lib/utils/paginator');
 
-
 class LearncodePrompt extends Base {
   constructor(questions, rl, answers) {
     super(questions, rl, answers);
@@ -43,7 +42,6 @@ class LearncodePrompt extends Base {
     var validation = this.handleSubmitEvents(submit);
     validation.success.forEach(this.onEnd.bind(this));
     validation.error.forEach(this.onError.bind(this));
-
 
     const broadlinkManager = this.opt.broadlinkManager;
 
@@ -81,9 +79,10 @@ class LearncodePrompt extends Base {
       }
 
       if (broadlinkManager.state === 'learning') {
-        bottomContent += chalk.cyan('>> ') + 'Point the remote control toward broadlink(' + mac + ') and press the button.\n';
+        bottomContent += chalk.cyan('>> ') +
+        `Point the remote control toward broadlink(${mac}) and press the button.\n`;
       } else {
-        bottomContent += chalk.red('>> ') + 'Wait for broadlink device:' + mac + ' to enter learning mode.\n';
+        bottomContent += chalk.red('>> ') + `Wait for broadlink device:${mac} to enter learning mode.\n`;
 
         broadlinkManager.startLearning(mac, true);
       }
@@ -113,7 +112,6 @@ class LearncodePrompt extends Base {
 
     // Re-render prompt
     this.render();
-
 
     cliCursor.show();
     this.screen.done();

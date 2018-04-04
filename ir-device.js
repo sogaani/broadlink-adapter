@@ -1,21 +1,20 @@
 'use strict';
 
-const util = require('util');
 const IRProperty = require('./ir-property');
 const IrConstants = require('./constants');
 
 let Constants, Device;
 try {
-    Constants = require('../addon-constants');
-    Device = require('../device');
+  Constants = require('../addon-constants');
+  Device = require('../device');
 } catch (e) {
-    if (e.code !== 'MODULE_NOT_FOUND') {
-        throw e;
-    }
+  if (e.code !== 'MODULE_NOT_FOUND') {
+    throw e;
+  }
 
-    const gwa = require('gateway-addon');
-    Constants = gwa.Constants;
-    Device = gwa.Device;
+  const gwa = require('gateway-addon');
+  Constants = gwa.Constants;
+  Device = gwa.Device;
 }
 
 var DEBUG = false;
@@ -89,147 +88,147 @@ var DEBUG = false;
  */
 
 class IRDevice extends Device {
-    constructor(adapter, config) {
-        super(adapter, config.id);
-        this.name = config.name;
-        this.description = config.description;
-        this.mac = adapter.mac;
+  constructor(adapter, config) {
+    super(adapter, config.id);
+    this.name = config.name;
+    this.description = config.description;
+    this.mac = adapter.mac;
 
-        switch (config.type) {
-            case IrConstants.IR_DEVICE_TYPE_THERMOSTAT:
-                this._initThermostat(config.ir, config)
-                break;
-            case IrConstants.IR_DEVICE_TYPE_DIMMABLE_LIGHT:
-                this._initDimbleLight(config.ir, config)
-                break;
-            case IrConstants.IR_DEVICE_TYPE_ON_OFF_LIGHT:
-                this._initOnOffLight(config.ir)
-                break;
-            case IrConstants.IR_DEVICE_TYPE_ON_OF_SWITCH:
-                this._initOnOffSwitch(config.ir)
-                break;
-            default:
-                // do nothing
-                break;
-        }
+    switch (config.type) {
+    case IrConstants.IR_DEVICE_TYPE_THERMOSTAT:
+      this._initThermostat(config.ir, config);
+      break;
+    case IrConstants.IR_DEVICE_TYPE_DIMMABLE_LIGHT:
+      this._initDimbleLight(config.ir, config);
+      break;
+    case IrConstants.IR_DEVICE_TYPE_ON_OFF_LIGHT:
+      this._initOnOffLight(config.ir);
+      break;
+    case IrConstants.IR_DEVICE_TYPE_ON_OF_SWITCH:
+      this._initOnOffSwitch(config.ir);
+      break;
+    default:
+      // do nothing
+      break;
     }
+  }
 
-    _initDimbleLight(ir, config) {
-        this.type = Constants.THING_TYPE_DIMMABLE_LIGHT;
-        this._addProperty(
-            'on',                          // name
-            {                              // property description
-                type: 'boolean',
-                unit: 'percent',
-                default: false,
-                onLevel: config.onLevel
-            },
-            {                              // ir
-                on: ir.on,
-                off: ir.off
-            },
-            'setOnOffValue'                // setAttrFromValue
-        );
-        this._addProperty(
-            'level',                       // name
-            {                              // property description
-                type: 'number',
-                default: 0,
-                levelStep: config.levelStep,
-                onLevel: config.onLevel
-            },
-            {                              // ir
-                levelDown: ir.levelDown,
-                levelUp: ir.levelUp
-            },
-            'setPowerLevelValue'           // setAttrFromValue
-        );
-    }
+  _initDimbleLight(ir, config) {
+    this.type = Constants.THING_TYPE_DIMMABLE_LIGHT;
+    this._addProperty(
+      'on', // name
+      { // property description
+        type   : 'boolean',
+        unit   : 'percent',
+        default: false,
+        onLevel: config.onLevel,
+      },
+      { // ir
+        on : ir.on,
+        off: ir.off,
+      },
+      'setOnOffValue' // setAttrFromValue
+    );
+    this._addProperty(
+      'level', // name
+      { // property description
+        type     : 'number',
+        default  : 0,
+        levelStep: config.levelStep,
+        onLevel  : config.onLevel,
+      },
+      { // ir
+        levelDown: ir.levelDown,
+        levelUp  : ir.levelUp,
+      },
+      'setPowerLevelValue' // setAttrFromValue
+    );
+  }
 
-    _initOnOffLight(ir) {
-        this.type = Constants.THING_TYPE_ON_OFF_LIGHT;
-        this._addProperty(
-            'on',                          // name
-            {                              // property description
-                type: 'boolean',
-                default: false
-            },
-            {                              // ir
-                on: ir.on,
-                off: ir.off
-            },
-            'setOnOffValue'                // setAttrFromValue
-        );
-    }
+  _initOnOffLight(ir) {
+    this.type = Constants.THING_TYPE_ON_OFF_LIGHT;
+    this._addProperty(
+      'on', // name
+      { // property description
+        type   : 'boolean',
+        default: false,
+      },
+      { // ir
+        on : ir.on,
+        off: ir.off,
+      },
+      'setOnOffValue' // setAttrFromValue
+    );
+  }
 
-    _initThermostat(ir, config) {
-        // use default things type
-        this._addProperty(
-            'temperature',                 // name
-            {                              // property description
-                type: 'number',
-                unit: 'celsius',
-                default: 20
-            },
-            {},                            // ir
-            'setTemperatureNumericValue'   // setAttrFromValue
-        );
-        this._addProperty(
-            'mode',                        // name
-            {                              // property description
-                type: 'string',
-                modes: ['on', 'cool', 'heat', 'off'],
-                default: 'off',
-                cool: {
-                    min: config.cool.min,
-                    max: config.cool.max
-                },
-                heat: {
-                    min: config.heat.min,
-                    max: config.heat.max
-                },
-            },
-            {                              // ir
-                off: ir.off,
-                cool: ir.cool,
-                heat: ir.heat
-            },
-            'setThermostatModeValue'       // setAttrFromValue
-        );
-    }
+  _initThermostat(ir, config) {
+    // use default things type
+    this._addProperty(
+      'temperature', // name
+      { // property description
+        type   : 'number',
+        unit   : 'celsius',
+        default: 20,
+      },
+      {}, // ir
+      'setTemperatureNumericValue' // setAttrFromValue
+    );
+    this._addProperty(
+      'mode', // name
+      { // property description
+        type   : 'string',
+        modes  : ['on', 'cool', 'heat', 'off'],
+        default: 'off',
+        cool   : {
+          min: config.cool.min,
+          max: config.cool.max,
+        },
+        heat: {
+          min: config.heat.min,
+          max: config.heat.max,
+        },
+      },
+      { // ir
+        off : ir.off,
+        cool: ir.cool,
+        heat: ir.heat,
+      },
+      'setThermostatModeValue' // setAttrFromValue
+    );
+  }
 
-    _initOnOffSwitch(ir) {
-        node.type = Constants.THING_TYPE_ON_OFF_SWITCH;
-        this._addProperty(
-            'on',                          // name
-            {                              // property description
-                type: 'boolean',
-                default: 'off'
-            },
-            {                              // ir
-                on: ir.on,
-                off: ir.off
-            },
-            'setOnOffValue'                // setAttrFromValue
-        );
-    }
+  _initOnOffSwitch(ir) {
+    this.type = Constants.THING_TYPE_ON_OFF_SWITCH;
+    this._addProperty(
+      'on', // name
+      { // property description
+        type   : 'boolean',
+        default: 'off',
+      },
+      { // ir
+        on : ir.on,
+        off: ir.off,
+      },
+      'setOnOffValue' // setAttrFromValue
+    );
+  }
 
-    _addProperty(name, propertyDescr, ir, setIRCodeFromValue) {
-        let property = new IRProperty(this, name, propertyDescr, ir, setIRCodeFromValue);
-        this.properties.set(name, property);
-    }
+  _addProperty(name, propertyDescr, ir, setIRCodeFromValue) {
+    const property = new IRProperty(this, name, propertyDescr, ir, setIRCodeFromValue);
+    this.properties.set(name, property);
+  }
 
-    asDict() {
-        const dict = super.asDict();
-        dict.mac = this.mac;
+  asDict() {
+    const dict = super.asDict();
+    dict.mac = this.mac;
 
-        return dict;
-    }
+    return dict;
+  }
 
-    sendIRSequence(property, sequence) {
-        if (DEBUG) console.log('sendIRSequence:', property, sequence);
-        this.adapter.sendSequence(this, property, sequence);
-    }
+  sendIRSequence(property, sequence) {
+    if (DEBUG) console.log('sendIRSequence:', property, sequence);
+    this.adapter.sendSequence(this, property, sequence);
+  }
 }
 
 module.exports = IRDevice;
