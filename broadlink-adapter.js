@@ -10,42 +10,10 @@ const EventEmitter = require('events').EventEmitter;
 const Queue = require('promise-queue');
 const BroadlinkJS = require('broadlinkjs-rm');
 const IRDevice = require('./ir-device');
-const fs = require('fs');
 
 var DEBUG = false;
 
-let Adapter;
-try {
-  Adapter = require('../adapter');
-} catch (e) {
-  if (e.code !== 'MODULE_NOT_FOUND') {
-    throw e;
-  }
-
-  Adapter = require('gateway-addon').Adapter;
-}
-
-const DEVICE_CONFIG_DIR = __dirname + '/devices';
-
-function validateJSON(text) {
-  var obj = null;
-
-  try {
-    obj = JSON.parse(text);
-    return obj;
-  } catch (err) {
-    // do nothing
-  }
-
-  try {
-    obj = eval('(' + text + ')');
-  } catch (err) {
-    console.log('ERROR. JSON.parse failed', err);
-    return null;
-  }
-  console.log('WARN. As a result of JSON.parse, a trivial problem has occurred');
-  return obj;
-}
+const {Adapter, Database} = require('gateway-addon');
 
 class BroadlinkAdapter extends Adapter {
   constructor(addonManager, manifest, broadlink) {
@@ -56,6 +24,7 @@ class BroadlinkAdapter extends Adapter {
     this._queue = new Queue(1, Infinity);
     this.manager.addAdapter(this);
     const config = manifest.moziot.config;
+    this.event = new EventEmitter();
 
     this._loadConfig(config);
   }
@@ -69,8 +38,41 @@ class BroadlinkAdapter extends Adapter {
     }
   }
 
-  handleDeviceAdded(device) {
-    super.handleDeviceAdded(device);
+  learnCode() {
+    return new Promise((resolve, reject) =>{
+      this.event.emit('stopLearning', new Error('learnCode called while learning'));
+
+      const onRawData = (message) => {
+        const hex = message.toString('hex');
+        this.event.emit('stopLearning');
+        resolve(hex);
+      };
+
+      const ping = setInterval(() => {
+        this._broadlink.checkData();
+      }, 1000);
+
+      const timeout = setTimeout(() => {
+        this.event.emit('stopLearning', new Error('learnCode timeout'));
+      }, 60000);
+
+      const cleanup = (err) => {
+        this._broadlink.removeListener('rawData', onRawData);
+        clearInterval(ping);
+        clearTimeout(timeout);
+        if (err) {
+          this._broadlink.cancelLearn();
+          reject(err);
+        }
+      };
+
+      this.event.once('stopLearning', (err)=>{
+        cleanup(err);
+      });
+
+      this._broadlink.on('rawData', onRawData);
+      this._broadlink.enterLearning();
+    });
   }
 
   sendData(hexData) {
@@ -81,19 +83,19 @@ class BroadlinkAdapter extends Adapter {
 
     const hexDataBuffer = new Buffer(hexData, 'hex');
 
-    this._queue.add(function() {
+    this._queue.add(() => {
       this._broadlink.sendData(hexDataBuffer);
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         setTimeout(() => {
           resolve();
         }, 200);
       });
-    }.bind(this));
+    });
   }
 
   waitSendSequenceResolve(device, property) {
-    this._queue.add(function() {
-      return new Promise((resolve, reject) => {
+    this._queue.add(() => {
+      return new Promise((resolve) => {
         var deferredSet = property.deferredSet;
         if (deferredSet) {
           property.deferredSet = null;
@@ -115,37 +117,9 @@ class BroadlinkAdapter extends Adapter {
 
   _createDeviceFromConfig(config) {
     // ToDo check config
-    console.log(config);
     if (!config || config.mac != this.mac) return;
 
     this.handleDeviceAdded(new IRDevice(this, config));
-  }
-
-  _createDeviceFromFile(file) {
-    fs.stat(DEVICE_CONFIG_DIR + '/' + file, function(err, stat) {
-      if (err) return;
-
-      fs.readFile(DEVICE_CONFIG_DIR + '/' + file, 'utf8', function(err, data) {
-        if (err) throw err;
-        const config = validateJSON(data);
-        this._createDeviceFromConfig(config);
-      }.bind(this));
-    }.bind(this));
-  }
-
-  _readDeviceFiles() {
-    fs.readdir(DEVICE_CONFIG_DIR, function(err, files) {
-      if (err) throw err;
-      files.forEach(this._createDeviceFromFile.bind(this));
-    }.bind(this));
-  }
-
-  startPairing(timeoutSeconds) {
-    this._readDeviceFiles();
-  }
-
-  cancelPairing() {
-    // Do nothing
   }
 
   removeThing(device) {
@@ -154,7 +128,7 @@ class BroadlinkAdapter extends Adapter {
     this.handleDeviceRemoved(device);
   }
 
-  cancelRemoveThing(node) {
+  cancelRemoveThing(_node) {
     // Nothing to do.
   }
 }
@@ -206,10 +180,10 @@ class BroadlinkManager extends Adapter {
 
     this._broadlinkFinder.discover(this._port1, this._port2, this._destaddr);
 
-    setTimeout(function() {
+    setTimeout(() => {
       this._timeoutSeconds -= 5;
       this._discoverDevices();
-    }.bind(this), 5 * 1000);
+    }, 5 * 1000);
   }
 
   startPairing(timeoutSeconds) {
@@ -257,10 +231,22 @@ class BroadlinkManager extends Adapter {
   }
 }
 
-function loadBroadlinkAdapters(addonManager, manifest, errorCallback) {
+function loadBroadlinkAdapters(addonManager, manifest, _errorCallback) {
+  const db = new Database(manifest.name);
   const broadlinkManager = new BroadlinkManager(addonManager, manifest);
+  const broadlinks = [];
 
-  broadlinkManager.event.on('deviceReady', function(device) {
+  broadlinkManager.event.on('deviceReady', async (device) => {
+    try {
+      await db.open();
+      const config = await db.loadConfig();
+      broadlinks.push(device.host.macAddress);
+      config.broadlinks = broadlinks;
+      await db.saveConfig(config);
+    } catch (err) {
+      console.error(err);
+    }
+
     new BroadlinkAdapter(addonManager, manifest, device);
   });
 }

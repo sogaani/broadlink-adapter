@@ -30,14 +30,67 @@
   ],
   "moziot": {
     "api": {
-      "min": 1,
+      "min": 2,
       "max": 2
     },
     "enabled": true,
     "plugin": true,
     "exec": "{nodeLoader} {path}",
     "config": {
+      "broadlinks": [],
       "devices": []
+    },
+    "schema": {
+      "definitions": {
+        "device": {
+          "type": "object",
+          "required": [
+            "mac",
+            "type",
+            "id",
+            "name"
+          ],
+          "uniqueItems": true,
+          "properties": {
+            "mac": {
+              "type": "string",
+              "description": "copy from above field \"broadlink mac address\""
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "thermostat",
+                "light",
+                "dimmableLight",
+                "switch"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "type": "object",
+      "properties": {
+        "broadlinks": {
+          "type": "array",
+          "title": "broadlink mac address",
+          "items": {
+            "type": "string"
+          }
+        },
+        "devices": {
+          "type": "array",
+          "title": "ir devices",
+          "items": {
+            "$ref": "#/definitions/device"
+          }
+        }
+      }
     }
   },
   "dependencies": {

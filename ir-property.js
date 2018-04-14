@@ -1,18 +1,6 @@
 'use strict';
 
-let Deferred, Property;
-try {
-  Deferred = require('../deferred');
-  Property = require('../property');
-} catch (e) {
-  if (e.code !== 'MODULE_NOT_FOUND') {
-    throw e;
-  }
-
-  const gwa = require('gateway-addon');
-  Deferred = gwa.Deferred;
-  Property = gwa.Property;
-}
+const {Deferred, Property} = require('gateway-addon');
 
 var DEBUG = false;
 
@@ -31,20 +19,27 @@ class IRProperty extends Property {
 
     this._ir = ir;
 
-    // if (setIRCodeFromValue) {
     this.setIRCodeFromValue = Object.getPrototypeOf(this)[setIRCodeFromValue];
     if (!this.setIRCodeFromValue) {
       const err = 'Unknown function: ' + setIRCodeFromValue;
       console.error(err);
       throw err;
     }
-    // }
 
     copyDescrFieldsInto(this, propertyDescr);
 
     if (this.hasOwnProperty('default')) {
       this.device.sendIRSequence(this, this.setIRCodeFromValue(this.default));
     }
+  }
+
+  setDescr(field, descr) {
+    this[field] = descr;
+  }
+
+  setIrCode(ir) {
+    const current = this._ir ? this._ir : {};
+    this._ir = Object.assign(current, ir);
   }
 
   asDict() {
@@ -68,11 +63,14 @@ class IRProperty extends Property {
   setOnOffValue(propertyValue) {
     const sequence = [];
 
+    if (!this._ir || !this._ir.on || !this._ir.off) {
+      return null;
+    }
     const irCode = propertyValue ? this._ir.on : this._ir.off;
 
     if (propertyValue) {
       const levelProperty = this.device.findProperty('level');
-      if (levelProperty) {
+      if (levelProperty && this.onLevel) {
         levelProperty.setCachedValue(this.onLevel);
         this.device.notifyPropertyChanged(levelProperty);
       }
@@ -94,6 +92,10 @@ class IRProperty extends Property {
   setPowerLevelValue(propertyValue) {
     // propertyValue is a percentage 0-100
     const sequence = [];
+
+    if (!this.levelStep || !this._ir || !this._ir.levelDown || !this._ir.levelUp) {
+      return null;
+    }
 
     let curLevel = this.value;
     const onProperty = this.device.findProperty('on');
@@ -131,7 +133,6 @@ class IRProperty extends Property {
      */
   setTemperatureNumericValue(propertyValue) {
     // propertyValue is a temperature integer
-    let sequence = [];
 
     let temperature = parseInt(propertyValue, 10);
 
@@ -147,10 +148,10 @@ class IRProperty extends Property {
     const modeProperty = this.device.findProperty('mode');
 
     if (modeProperty) {
-      sequence = sequence.concat(modeProperty.setIRCodeFromValue(modeProperty.value));
+      return modeProperty.setIRCodeFromValue(modeProperty.value);
     }
 
-    return sequence;
+    return null;
   }
 
   /**
@@ -165,12 +166,12 @@ class IRProperty extends Property {
     const modeIndex = this.modes.indexOf(propertyValue);
 
     if (modeIndex == -1) {
-      return sequence;
+      return null;
     }
 
     const temperatureProperty = this.device.findProperty('temperature');
     if (!temperatureProperty) {
-      return sequence;
+      return null;
     }
 
     let temperature = temperatureProperty.value;
@@ -178,12 +179,20 @@ class IRProperty extends Property {
     switch (propertyValue) {
     case 'on':
       if (!this.prevModeValue) {
-        return sequence;
+        return null;
       }
       return this.setThermostatModeValue(this.prevMode);
     case 'heat':
     case 'cool': {
       const mode = this[propertyValue];
+      if (!mode || !mode.min || !mode.max) {
+        return null;
+      }
+
+      const index = temperature - mode.min;
+      if (!this._ir || !this._ir[propertyValue] || !this._ir[propertyValue][index]) {
+        return null;
+      }
 
       temperatureProperty['min'] = mode.min;
       temperatureProperty['max'] = mode.max;
@@ -199,13 +208,17 @@ class IRProperty extends Property {
         this.device.notifyPropertyChanged(temperatureProperty);
       }
 
-      sequence.push(this._ir[propertyValue][temperature - mode.min]);
-      console.log('updated thermostat', propertyValue);
+      sequence.push(this._ir[propertyValue][index]);
+      DEBUG && console.log('updated thermostat', propertyValue);
       this.prevMode = propertyValue;
       break;
     }
     case 'off':
       if (this.value != 'off') {
+        if (!this._ir || !this._ir.off) {
+          return null;
+        }
+
         sequence.push(this._ir.off);
       }
       break;
@@ -228,11 +241,16 @@ class IRProperty extends Property {
       return Promise.resolve();
     }
 
+    const sequence = this.setIRCodeFromValue(value);
+    if (sequence == null) {
+      console.error('setValue failed. Please learn code.');
+      return Promise.resolve();
+    }
+
     if (!this.deferredSet) {
       this.deferredSet = new Deferred();
     }
-
-    this.device.sendIRSequence(this, this.setIRCodeFromValue(value));
+    this.device.sendIRSequence(this, sequence);
     return this.deferredSet.promise;
   }
 }

@@ -2,6 +2,7 @@
 *.tgz
 *~
 SHA256SUMS
+/tmp
 /.vscode/
 /node_modules/
 /devices/*
