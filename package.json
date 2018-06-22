@@ -23,8 +23,11 @@
   "files": [
     "LICENSE",
     "SHA256SUMS",
+    "asset",
     "index.js",
     "broadlink-adapter.js",
+    "constants.js",
+    "ir-action-learncode.js",
     "ir-device.js",
     "ir-property.js",
     "node_modules"

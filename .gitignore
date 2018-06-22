@@ -6,4 +6,5 @@ SHA256SUMS
 /.vscode/
 /node_modules/
 /devices/*
+/package
 !.gitkeep
