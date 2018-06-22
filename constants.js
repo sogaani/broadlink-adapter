@@ -84,74 +84,14 @@ exports.IR_ACTION_INPUT_THERMOSTAT = {
       default    : LEARN_TARGET_ALL,
       description: TARGET_DESCRIPTION,
     },
+    MaxHeatTemperature,
+    MinHeatTemperature,
+    MaxCoolTemperature,
+    MinCoolTemperature,
   },
   required: [
     'target',
   ],
-  dependencies: {
-    target: {
-      oneOf: [
-        {
-          properties: {
-            target: {
-              enum: [
-                LEARN_TARGET_OFF,
-              ],
-            },
-          },
-        },
-        {
-          properties: {
-            target: {
-              enum: [
-                LEARN_TARGET_ALL,
-              ],
-            },
-            MaxHeatTemperature,
-            MinHeatTemperature,
-            MaxCoolTemperature,
-            MinCoolTemperature,
-          },
-          required: [
-            'MaxHeatTemperature',
-            'MinHeatTemperature',
-            'MaxCoolTemperature',
-            'MinCoolTemperature',
-          ],
-        },
-        {
-          properties: {
-            target: {
-              enum: [
-                LEARN_TARGET_HEAT,
-              ],
-            },
-            MaxHeatTemperature,
-            MinHeatTemperature,
-          },
-          required: [
-            'MaxHeatTemperature',
-            'MinHeatTemperature',
-          ],
-        },
-        {
-          properties: {
-            target: {
-              enum: [
-                LEARN_TARGET_COOL,
-              ],
-            },
-            MaxCoolTemperature,
-            MinCoolTemperature,
-          },
-          required: [
-            'MaxCoolTemperature',
-            'MinCoolTemperature',
-          ],
-        },
-      ],
-    },
-  },
 };
 
 exports.IR_ACTION_INPUT_DIMMABLE_LIGHT = {
@@ -166,57 +106,12 @@ exports.IR_ACTION_INPUT_DIMMABLE_LIGHT = {
       default    : LEARN_TARGET_ALL,
       description: TARGET_DESCRIPTION,
     },
+    onLevel,
+    levelStep,
   },
   required: [
     'target',
   ],
-  dependencies: {
-    target: {
-      oneOf: [
-        {
-          properties: {
-            target: {
-              enum: [
-                LEARN_TARGET_ALL,
-              ],
-            },
-            onLevel,
-            levelStep,
-          },
-          required: [
-            'onLevel',
-            'levelStep',
-          ],
-        },
-        {
-          properties: {
-            target: {
-              enum: [
-                LEARN_TARGET_ON_OFF,
-              ],
-            },
-            onLevel,
-          },
-          required: [
-            'onLevel',
-          ],
-        },
-        {
-          properties: {
-            target: {
-              enum: [
-                LEARN_TARGET_BRIGHTNESS_UP_DOWN,
-              ],
-            },
-            levelStep,
-          },
-          required: [
-            'levelStep',
-          ],
-        },
-      ],
-    },
-  },
 };
 
 exports.IR_ACTION_INPUT_ON_OFF_LIGHT = {
