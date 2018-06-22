@@ -73,8 +73,8 @@ const levelStep = {
 exports.IR_ACTION_LEARN = 'learn';
 
 exports.IR_ACTION_INPUT_THERMOSTAT = {
-  type     : 'object',
-  propertie: {
+  type      : 'object',
+  properties: {
     target: {
       type: 'string',
       enum: [
@@ -95,8 +95,8 @@ exports.IR_ACTION_INPUT_THERMOSTAT = {
 };
 
 exports.IR_ACTION_INPUT_DIMMABLE_LIGHT = {
-  type     : 'object',
-  propertie: {
+  type      : 'object',
+  properties: {
     target: {
       type: 'string',
       enum: [
@@ -115,8 +115,8 @@ exports.IR_ACTION_INPUT_DIMMABLE_LIGHT = {
 };
 
 exports.IR_ACTION_INPUT_ON_OFF_LIGHT = {
-  type     : 'object',
-  propertie: {
+  type      : 'object',
+  properties: {
     target: {
       type: 'string',
       enum: [
@@ -133,8 +133,8 @@ exports.IR_ACTION_INPUT_ON_OFF_LIGHT = {
 };
 
 exports.IR_ACTION_INPUT_ON_OF_SWITCH = {
-  type     : 'object',
-  propertie: {
+  type      : 'object',
+  properties: {
     target: {
       type: 'string',
       enum: [
