@@ -173,7 +173,7 @@ class IRDevice extends Device {
       'temperature', // name
       { // property description
         type   : 'number',
-        unit   : 'celsius',
+        unit   : 'degree celsius',
         default: 20,
       },
       {}, // ir
