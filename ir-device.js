@@ -3,7 +3,7 @@
 const IRProperty = require('./ir-property');
 const IrConstants = require('./constants');
 const ActionLearn = require('./ir-action-learncode');
-const {Constants, Device} = require('gateway-addon');
+const {Device} = require('gateway-addon');
 
 var DEBUG = false;
 
@@ -121,7 +121,6 @@ class IRDevice extends Device {
   }
 
   _initDimbleLight(ir, config) {
-    this.type = Constants.THING_TYPE_DIMMABLE_LIGHT;
     this._addProperty(
       'on', // name
       { // property description
@@ -152,7 +151,6 @@ class IRDevice extends Device {
   }
 
   _initOnOffLight(ir) {
-    this.type = Constants.THING_TYPE_ON_OFF_LIGHT;
     this._addProperty(
       'on', // name
       { // property description
@@ -204,7 +202,6 @@ class IRDevice extends Device {
   }
 
   _initOnOffSwitch(ir) {
-    this.type = Constants.THING_TYPE_ON_OFF_SWITCH;
     this._addProperty(
       'on', // name
       { // property description
