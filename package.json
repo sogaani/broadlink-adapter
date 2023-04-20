@@ -102,6 +102,6 @@
     "promise-queue": "^2.2.5"
   },
   "devDependencies": {
-    "eslint": "^4.19.1"
+    "eslint": "^8.38.0"
   }
 }
